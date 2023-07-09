@@ -1,0 +1,76 @@
+name: Deploy to staging
+on:
+  push:
+    branches:
+      - 'releases/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    name: "Deploy to staging site 🚀"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: |
+          echo "::set-output name=dir::$(npm config get cache)"
+
+      - uses: actions/cache@v3
+        id: npm-cache
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: ADD NODE JS
+        uses: actions/setup-node@v2
+
+      - name: ADD PHP v 7.4.x
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+          tools: composer:v2
+
+      - name: Install node dependencies
+        run: |
+          npm install --ignore-engines --force
+          cd app/Internal/FormBuilder && npm install --ignore-engines --force
+          cd FormBlock && npm install --ignore-engines --force
+          cd ../../../../
+
+      - name: Build plugin
+        run: |
+          grunt build
+
+      - name: Before Deployment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            sudo rm -rf /var/www/wordpress/wp-content/plugins/mail-mint/*
+            sudo chown -R ubuntu /var/www/wordpress/wp-content/plugins/
+
+      - name: Deploy to AWS Server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.HOST_DNS }}
+          REMOTE_USER: ${{ secrets.USERNAME }}
+          SOURCE: "build/"
+          TARGET: "/var/www/wordpress/wp-content/plugins/mail-mint/"
+          EXCLUDE: "/node_modules/"
+
+      - name: After Deployment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            sudo chown -R www-data:www-data /var/www/wordpress/wp-content/plugins/

@@ -1,0 +1,32 @@
+on:
+  push:
+    branches:
+      - '*'
+
+name: Test Transition Issue
+
+jobs:
+  test-transition-issue:
+    name: Transition Issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Extract Issue Key
+        id: extractIssueKey
+        run: |
+          ISSUE_KEY=$(echo "${{ github.ref }}" | sed -nE 's|.*([A-Za-z]+-[0-9]+)-.*|\1|p')
+          echo "::set-output name=issueKey::$ISSUE_KEY"
+
+      - name: Transition Issue
+        run: |
+          if [ -n "${{ steps.extractIssueKey.outputs.issueKey }}" ]; then
+            curl -X POST \
+              -H "Content-Type: application/json" \
+              -u "${{ secrets.TUHIN_JIRA_USER_EMAIL }}:${{ secrets.TUHIN_JIRA_API_TOKEN }}" \
+              -d '{ "transition": { "id": "21" } }' \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/latest/issue/${{ steps.extractIssueKey.outputs.issueKey }}/transitions"
+          else
+            echo "No issue key found in branch name. Skipping JIRA update."
+          fi

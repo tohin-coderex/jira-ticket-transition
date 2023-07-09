@@ -1,0 +1,35 @@
+name: Lint
+
+on:
+  pull_request:
+    paths:
+      - '**.php'
+
+  # Allow manually triggering the workflow.
+  workflow_dispatch:
+
+# Cancels all previous workflow runs for the same branch that have not yet completed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  PHP-Lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Install Dependencies
+        run: |
+          composer install
+          composer require php-parallel-lint/php-parallel-lint
+
+      - name: Run Lint
+        run: |
+          vendor/bin/phpcs -p -s -n . --standard=./phpcs.xml --extensions=php
