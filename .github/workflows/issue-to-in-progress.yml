@@ -19,7 +19,11 @@ jobs:
         JIRA_API_TOKEN: ${{ secrets.TUHIN_JIRA_API_TOKEN }}
 
     - name: Find Issue Key
-      uses: ./
+      run: |
+        commit_range=$(git rev-parse --abbrev-ref HEAD)...HEAD
+        commit_messages=$(git log --format=%B $commit_range)
+        issue_key=$(echo "$commit_messages" | grep -oE '[A-Z]+-[0-9]+')
+        echo "::set-output name=issue::$issue_key"
       with:
         from: commits
 
