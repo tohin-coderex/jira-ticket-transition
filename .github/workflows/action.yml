@@ -1,0 +1,11 @@
+# Get the commit range
+commit_range=$(git rev-parse --abbrev-ref HEAD)...HEAD
+
+# Get the commit messages in the commit range
+commit_messages=$(git log --format=%B $commit_range)
+
+# Find the issue key using a regular expression
+issue_key=$(echo "$commit_messages" | grep -oE '[A-Z]+-[0-9]+')
+
+# Output the issue key
+echo "::set-output name=issue::$issue_key"
